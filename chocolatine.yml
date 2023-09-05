@@ -1,0 +1,67 @@
+name: chocolatine
+
+on:
+  push:
+    branches-ignore:
+      - 'ga-ignore-*'
+  pull_request:
+
+env:
+  MIRROR_URL: ${{secrets.MIRROR_URL}}
+  EXECUTABLE: ${{secrets.EXECUTABLE}}
+
+
+jobs:
+  check_coding_style:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/epitech/coding-style-checker:latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Check coding style
+        run: |
+          # Check coding style
+          check.sh $(pwd) $(pwd)
+
+      - name: Show coding style errors
+        if: ${{ job.status == 'failure' }}
+        run: |
+          cat result.xml | python3 /error_anotation.py
+
+      - name: Fail if coding style errors
+        if: ${{ job.status == 'failure' }}
+        run: |
+          echo "Coding style errors detected. Please fix them."
+          exit 1
+
+  run_tests:
+    runs-on: ubuntu-latest
+    container: epitechcontent/epitest-docker
+    timeout-minutes: 2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run tests
+        run: make re && make tests_run
+
+  check_program_compilation:
+    runs-on: ubuntu-latest
+    container:
+      image: epitechcontent/epitest-docker
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build executable
+        run: |
+          make
+
+      - name: Check executable
+        run: |
+          if [ ! -f "${{ env.EXECUTABLE }}" ] || [ ! -x "${{ env.EXECUTABLE }}" ]; then
+            echo "Error: ${{ env.EXECUTABLE }} not found or not executable"
+            exit 1
+          fi
